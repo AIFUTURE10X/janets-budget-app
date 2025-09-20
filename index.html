@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Janet's Budget App</title>
+    <link rel="stylesheet" href="styles.css?v=2.3">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-wallet"></i> Janet's Budget App</h1>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="addTransactionBtn">
+                        <i class="fas fa-plus"></i> Add Transaction
+                    </button>
+                    <button class="btn btn-secondary" id="settingsBtn">
+                        <i class="fas fa-cog"></i> Settings
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Alert Container -->
+        <div id="alertContainer" class="alert-container"></div>
+
+        <!-- Main Dashboard -->
+        <main class="main-content">
+            <!-- Balance Overview -->
+            <section class="balance-section">
+                <div class="balance-card">
+                    <h2>Current Balance</h2>
+                    <div class="balance-amount" id="currentBalance">$0.00</div>
+                    <div class="balance-details">
+                        <div class="balance-item">
+                            <span class="label">Total Income:</span>
+                            <span class="amount income" id="totalIncome">$0.00</span>
+                        </div>
+                        <div class="balance-item">
+                            <span class="label">Total Expenses:</span>
+                            <span class="amount expense" id="totalExpenses">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Budget Categories -->
+            <section class="budget-section">
+                <div class="section-header">
+                    <h2>Budget Categories</h2>
+                    <button class="btn btn-outline" id="manageBudgetsBtn">
+                        <i class="fas fa-edit"></i> Manage Budgets
+                    </button>
+                </div>
+                <div class="budget-grid" id="budgetGrid">
+                    <!-- Budget categories will be dynamically generated -->
+                </div>
+            </section>
+
+            <!-- Recent Transactions -->
+            <section class="transactions-section">
+                <div class="section-header">
+                    <h2>Recent Transactions</h2>
+                    <button class="btn btn-outline" id="viewAllTransactionsBtn">
+                        <i class="fas fa-list"></i> View All
+                    </button>
+                </div>
+                <div class="transactions-list" id="transactionsList">
+                    <!-- Transactions will be dynamically generated -->
+                </div>
+            </section>
+
+            <!-- Spending Chart -->
+            <section class="chart-section">
+                <h2>Spending Overview</h2>
+                <div class="chart-container">
+                    <canvas id="spendingChart"></canvas>
+                </div>
+            </section>
+        </main>
+
+        <!-- Modals -->
+        <!-- Add Transaction Modal -->
+        <div class="modal" id="transactionModal">
+            <div class="modal-content enhanced-modal">
+                <div class="modal-header">
+                    <h3 id="transactionModalTitle">
+                        <i class="fas fa-plus-circle"></i>
+                        Add Transaction
+                    </h3>
+                    <button class="close-btn" id="closeTransactionModal" aria-label="Close modal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="modal-body enhanced-body">
+                    <form id="transactionForm" class="enhanced-form">
+                        <div class="form-row">
+                            <div class="form-group enhanced-group">
+                                <label for="transactionType" class="enhanced-label">
+                                    <i class="fas fa-exchange-alt"></i>
+                                    Transaction Type
+                                </label>
+                                <select id="transactionType" class="enhanced-select" required>
+                                    <option value="expense">💸 Expense</option>
+                                    <option value="income">💰 Income</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group enhanced-group">
+                                <label for="transactionAmount" class="enhanced-label">
+                                    <i class="fas fa-dollar-sign"></i>
+                                    Amount
+                                </label>
+                                <input type="number" 
+                                       id="transactionAmount" 
+                                       class="enhanced-input" 
+                                       step="0.01" 
+                                       min="0" 
+                                       required 
+                                       placeholder="0.00">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group enhanced-group category-group">
+                            <label for="transactionCategory" class="enhanced-label">
+                                <i class="fas fa-tags"></i>
+                                Category
+                            </label>
+                            <div class="category-input-container">
+                                <select id="transactionCategory" class="enhanced-select category-select" required>
+                                    <!-- Categories will be populated dynamically -->
+                                </select>
+                                <button type="button" class="enhanced-add-btn" id="addCategoryBtn">
+                                    <i class="fas fa-plus"></i>
+                                    <span>Add New</span>
+                                </button>
+                            </div>
+                            
+                            <div class="new-category-section" id="newCategoryInput" style="display: none;">
+                                <div class="new-category-input-wrapper">
+                                    <input type="text" 
+                                           id="newCategoryName" 
+                                           class="enhanced-input new-category-input" 
+                                           placeholder="Enter new category name" 
+                                           maxlength="30">
+                                    <div class="new-category-actions">
+                                        <button type="button" class="btn btn-success btn-sm" id="saveNewCategory">
+                                            <i class="fas fa-check"></i> Save
+                                        </button>
+                                        <button type="button" class="btn btn-secondary btn-sm" id="cancelNewCategory">
+                                            <i class="fas fa-times"></i> Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group enhanced-group">
+                            <label for="transactionDescription" class="enhanced-label">
+                                <i class="fas fa-comment-alt"></i>
+                                Description
+                                <span class="optional-text">(Optional)</span>
+                            </label>
+                            <input type="text" 
+                                   id="transactionDescription" 
+                                   class="enhanced-input" 
+                                   placeholder="e.g., Walmart grocery shopping, Salary payment">
+                        </div>
+                        
+                        <div class="form-group enhanced-group">
+                            <label for="transactionDate" class="enhanced-label">
+                                <i class="fas fa-calendar-alt"></i>
+                                Date
+                            </label>
+                            <input type="date" 
+                                   id="transactionDate" 
+                                   class="enhanced-input" 
+                                   required>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="modal-footer enhanced-footer">
+                    <button type="button" class="btn btn-secondary enhanced-btn" id="cancelTransaction">
+                        <i class="fas fa-times"></i>
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary enhanced-btn" form="transactionForm">
+                        <i class="fas fa-save"></i>
+                        Save Transaction
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Budget Management Modal -->
+        <div class="modal" id="budgetModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Manage Budgets</h3>
+                    <button class="close-btn" id="closeBudgetModal">&times;</button>
+                </div>
+                <div class="budget-management">
+                    <div class="budget-form">
+                        <h4>Set Category Budget</h4>
+                        <form id="budgetForm">
+                            <div class="form-group">
+                                <label for="budgetCategory">Category:</label>
+                                <select id="budgetCategory" required>
+                                    <!-- Categories will be populated dynamically -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="budgetAmount">Monthly Budget:</label>
+                                <input type="number" id="budgetAmount" step="0.01" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="budgetPeriod">Period:</label>
+                                <select id="budgetPeriod">
+                                    <option value="monthly">Monthly</option>
+                                    <option value="weekly">Weekly</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Set Budget</button>
+                        </form>
+                    </div>
+                    <div class="current-budgets">
+                        <h4>Current Budgets</h4>
+                        <div id="currentBudgetsList">
+                            <!-- Current budgets will be listed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal" id="settingsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Settings</h3>
+                    <button class="close-btn" id="closeSettingsModal">&times;</button>
+                </div>
+                <div class="settings-content">
+                    <div class="settings-section">
+                        <h4>Alert Preferences</h4>
+                        <div class="form-group">
+                            <label for="lowBalanceThreshold">Low Balance Alert Threshold:</label>
+                            <input type="number" id="lowBalanceThreshold" step="0.01" min="0" placeholder="100.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="overspendingAlert">Overspending Alert at:</label>
+                            <select id="overspendingAlert">
+                                <option value="80">80% of budget</option>
+                                <option value="90">90% of budget</option>
+                                <option value="100">100% of budget</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="enableNotifications"> Enable Browser Notifications
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h4>Data Management</h4>
+                        <button class="btn btn-outline" id="exportDataBtn">
+                            <i class="fas fa-download"></i> Export Data
+                        </button>
+                        <button class="btn btn-danger" id="clearDataBtn">
+                            <i class="fas fa-trash"></i> Clear All Data
+                        </button>
+                    </div>
+                    <div class="settings-section">
+                        <h4>Data Sync</h4>
+                        <div class="sync-status" id="syncStatus">
+                            <i class="fas fa-cloud"></i>
+                            <span id="syncStatusText">Ready to sync</span>
+                        </div>
+                        <div class="sync-actions">
+                            <button class="btn btn-primary" id="backupDataBtn">
+                                <i class="fas fa-cloud-upload-alt"></i> Backup to Cloud
+                            </button>
+                            <button class="btn btn-success" id="restoreDataBtn">
+                                <i class="fas fa-cloud-download-alt"></i> Restore from Cloud
+                            </button>
+                            <input type="file" id="syncFileInput" accept=".json" style="display: none;">
+                        </div>
+                        <div class="sync-info">
+                            <small>
+                                <i class="fas fa-info-circle"></i>
+                                Backup your data to access it on other devices. Restore to sync data from another device.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-primary" id="saveSettings">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Transactions Modal -->
+        <div class="modal" id="allTransactionsModal">
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h3>All Transactions</h3>
+                    <button class="close-btn" id="closeAllTransactionsModal">&times;</button>
+                </div>
+                <div class="transactions-filter">
+                    <div class="filter-group">
+                        <label for="filterCategory">Filter by Category:</label>
+                        <select id="filterCategory">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterType">Filter by Type:</label>
+                        <select id="filterType">
+                            <option value="">All Types</option>
+                            <option value="income">Income</option>
+                            <option value="expense">Expense</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterDateFrom">From Date:</label>
+                        <input type="date" id="filterDateFrom">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterDateTo">To Date:</label>
+                        <input type="date" id="filterDateTo">
+                    </div>
+                </div>
+                <div class="all-transactions-list" id="allTransactionsList">
+                    <!-- All transactions will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js?v=2.4"></script>
+</body>
+</html>
