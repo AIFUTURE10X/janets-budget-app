@@ -2,6 +2,12 @@
 class BudgetApp {
     constructor() {
         this.transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+        // Convert date strings back to Date objects
+        this.transactions.forEach(transaction => {
+            if (typeof transaction.date === 'string') {
+                transaction.date = new Date(transaction.date);
+            }
+        });
         this.budgets = JSON.parse(localStorage.getItem('budgets')) || {};
         this.settings = JSON.parse(localStorage.getItem('settings')) || {
             lowBalanceThreshold: 100,
@@ -409,7 +415,17 @@ class BudgetApp {
             document.getElementById('transactionAmount').value = transaction.amount;
             document.getElementById('transactionCategory').value = transaction.category;
             document.getElementById('transactionDescription').value = transaction.description || '';
-            document.getElementById('transactionDate').value = transaction.date.toISOString().split('T')[0];
+            
+            // Handle date properly - it might be a string or Date object
+            let dateValue;
+            if (transaction.date instanceof Date) {
+                dateValue = transaction.date.toISOString().split('T')[0];
+            } else {
+                // If it's a string, convert to Date first
+                const dateObj = new Date(transaction.date);
+                dateValue = dateObj.toISOString().split('T')[0];
+            }
+            document.getElementById('transactionDate').value = dateValue;
             form.dataset.editId = transaction.id;
         } else {
             // Add mode
