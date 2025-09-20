@@ -141,6 +141,15 @@ class BudgetApp {
         this.showAlert('Transaction deleted successfully!', 'success');
     }
 
+    editTransaction(id) {
+        const transaction = this.transactions.find(t => t.id === id);
+        if (transaction) {
+            this.openTransactionModal(transaction);
+        } else {
+            this.showAlert('Transaction not found!', 'error');
+        }
+    }
+
     // Budget Management
     setBudget(category, amount, period = 'monthly') {
         this.budgets[category] = { amount: parseFloat(amount), period };
@@ -318,7 +327,7 @@ class BudgetApp {
                     ${transaction.type === 'income' ? '+' : '-'}${this.formatCurrency(transaction.amount)}
                 </div>
                 <div class="transaction-actions">
-                    <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-right: 0.5rem;" onclick="app.openTransactionModal(app.transactions.find(t => t.id === '${transaction.id}'))">
+                    <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-right: 0.5rem;" onclick="app.editTransaction('${transaction.id}')">
                         <i class="fas fa-edit"></i>
                     </button>
                     <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="app.deleteTransaction('${transaction.id}')">
@@ -445,11 +454,37 @@ class BudgetApp {
         console.log('Modal classes after adding active:', modal.className);
     }
 
-    openBudgetModal() {
+    openBudgetModal(category = null) {
         const modal = document.getElementById('budgetModal');
+        const form = document.getElementById('budgetForm');
+        
+        if (category && this.budgets[category]) {
+            // Edit mode
+            document.getElementById('budgetModalTitle').textContent = 'Edit Budget';
+            document.getElementById('budgetCategory').value = category;
+            document.getElementById('budgetAmount').value = this.budgets[category].amount;
+            document.getElementById('budgetPeriod').value = this.budgets[category].period;
+            form.dataset.editCategory = category;
+            
+            // Disable category selection when editing
+            document.getElementById('budgetCategory').disabled = true;
+        } else {
+            // Add mode
+            document.getElementById('budgetModalTitle').textContent = 'Set Category Budget';
+            form.reset();
+            delete form.dataset.editCategory;
+            
+            // Enable category selection when adding
+            document.getElementById('budgetCategory').disabled = false;
+        }
+        
         this.populateBudgetCategories();
         this.updateBudgetsList();
         modal.classList.add('active');
+    }
+
+    editBudget(category) {
+        this.openBudgetModal(category);
     }
 
     openSettingsModal() {
@@ -508,14 +543,32 @@ class BudgetApp {
     handleBudgetSubmit(e) {
         e.preventDefault();
         
+        const form = e.target;
         const category = document.getElementById('budgetCategory').value;
         const amount = document.getElementById('budgetAmount').value;
         const period = document.getElementById('budgetPeriod').value;
         
-        this.setBudget(category, amount, period);
+        if (form.dataset.editCategory) {
+            // Edit existing budget
+            const oldCategory = form.dataset.editCategory;
+            if (oldCategory !== category) {
+                // Category changed, remove old and add new
+                delete this.budgets[oldCategory];
+            }
+            this.setBudget(category, amount, period);
+            this.showAlert('Budget updated successfully!', 'success');
+        } else {
+            // Add new budget
+            this.setBudget(category, amount, period);
+        }
         
-        // Reset form
-        document.getElementById('budgetForm').reset();
+        // Reset form and re-enable category selection
+        form.reset();
+        document.getElementById('budgetCategory').disabled = false;
+        delete form.dataset.editCategory;
+        
+        // Update the budgets list
+        this.updateBudgetsList();
     }
 
     // Category Management
@@ -661,7 +714,12 @@ class BudgetApp {
                     <div style="font-size: 0.8rem; color: #7f8c8d;">${budget.period}</div>
                 </div>
                 <div class="amount">${this.formatCurrency(budget.amount)}</div>
-                <button class="remove-btn" onclick="app.removeBudget('${category}')">Remove</button>
+                <div class="budget-actions">
+                    <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-right: 0.5rem;" onclick="app.editBudget('${category}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="remove-btn" onclick="app.removeBudget('${category}')">Remove</button>
+                </div>
             </div>
         `).join('');
     }

@@ -849,6 +849,12 @@ body {
     font-weight: 600;
 }
 
+.budget-list-item .budget-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .budget-list-item .remove-btn {
     background: #e74c3c;
     color: white;
