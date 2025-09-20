@@ -8,10 +8,11 @@ class BudgetApp {
         // Check if this is a mobile device
         this.isMobile = this.detectMobile();
         
-        // Initialize with better mobile compatibility
-        this.initializeData();
+        // Initialize chart reference
         this.chart = null;
-        this.init();
+        
+        // Initialize data and UI asynchronously to prevent blocking
+        this.initializeAsync();
     }
 
     // Detect if running on mobile device
@@ -20,7 +21,40 @@ class BudgetApp {
                (window.innerWidth <= 768 && 'ontouchstart' in window);
     }
 
-    // Initialize data with mobile compatibility
+    // Asynchronous initialization to prevent blocking
+    async initializeAsync() {
+        try {
+            // Initialize data first
+            await this.initializeDataAsync();
+            
+            // Then initialize UI
+            await this.initAsync();
+            
+            console.log('App initialized successfully');
+        } catch (error) {
+            console.error('Initialization failed:', error);
+            // Fallback to basic initialization
+            this.initializeDefaultData();
+            this.init();
+        }
+    }
+
+    // Asynchronous data initialization
+    async initializeDataAsync() {
+        // Determine storage type based on device
+        this.useSessionStorage = this.isMobile;
+        this.storageType = this.useSessionStorage ? 'sessionStorage' : 'localStorage';
+        
+        console.log('Initializing data with storage type:', this.storageType);
+        
+        // Load data
+        this.loadData();
+        
+        // Check version without blocking operations
+        await this.checkVersionAsync();
+    }
+
+    // Initialize data with mobile compatibility (synchronous fallback)
     initializeData() {
         // Determine storage type based on device
         this.useSessionStorage = this.isMobile;
@@ -31,11 +65,47 @@ class BudgetApp {
         // Load data
         this.loadData();
         
-        // Check version and sync if needed
-        this.checkVersionAndSync();
+        // Simple version check without blocking
+        this.checkVersionSimple();
     }
 
-    // Check version and force sync if needed
+    // Async version check without blocking operations
+    async checkVersionAsync() {
+        try {
+            const storage = this.useSessionStorage ? sessionStorage : localStorage;
+            const storedVersion = storage.getItem(this.STORAGE_VERSION_KEY);
+            
+            console.log('App version check:', {
+                current: this.APP_VERSION,
+                stored: storedVersion,
+                isMobile: this.isMobile
+            });
+            
+            // If version mismatch, just update version without heavy operations
+            if (storedVersion !== this.APP_VERSION) {
+                console.log('Version updated to:', this.APP_VERSION);
+                storage.setItem(this.STORAGE_VERSION_KEY, this.APP_VERSION);
+            }
+        } catch (error) {
+            console.warn('Version check failed:', error);
+        }
+    }
+
+    // Simple version check without blocking operations
+    checkVersionSimple() {
+        try {
+            const storage = this.useSessionStorage ? sessionStorage : localStorage;
+            const storedVersion = storage.getItem(this.STORAGE_VERSION_KEY);
+            
+            if (storedVersion !== this.APP_VERSION) {
+                storage.setItem(this.STORAGE_VERSION_KEY, this.APP_VERSION);
+            }
+        } catch (error) {
+            console.warn('Version check failed:', error);
+        }
+    }
+
+    // Check version and force sync if needed (original method - kept for compatibility)
     checkVersionAndSync() {
         try {
             const storage = this.useSessionStorage ? sessionStorage : localStorage;
@@ -216,6 +286,39 @@ class BudgetApp {
     }
 
     // Initialize the app
+    // Async initialization to prevent blocking
+    async initAsync() {
+        // Setup event listeners first
+        this.setupEventListeners();
+        
+        // Use requestAnimationFrame to break up heavy operations
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
+        // Initialize UI components in chunks
+        this.updateDashboard();
+        
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
+        this.populateCategories();
+        this.populateFilterCategories();
+        
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
+        this.populateBudgetCategories();
+        this.updateBudgetsList();
+        
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
+        this.displayAllTransactions();
+        this.checkAlerts();
+        
+        // Request notification permission if enabled
+        if (this.settings.enableNotifications) {
+            this.requestNotificationPermission();
+        }
+    }
+
+    // Synchronous init (fallback)
     init() {
         this.setupEventListeners();
         this.updateDashboard();
@@ -927,8 +1030,8 @@ class BudgetApp {
     
     // Perform cloud sync (simulated)
     async performCloudSync(data) {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Simulate network delay (reduced to prevent blocking)
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // In a real implementation, this would make an API call to your backend
         // For now, we'll create a backup file and store sync info locally
