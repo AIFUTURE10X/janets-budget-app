@@ -183,19 +183,31 @@ class BudgetApp {
     }
 
     calculateTotalBudgetRemaining() {
-        if (Object.keys(this.budgets).length === 0) {
-            return 0; // No budgets set, so no remaining budget
+        try {
+            // If no budgets are set, return 0
+            if (!this.budgets || typeof this.budgets !== 'object' || Object.keys(this.budgets).length === 0) {
+                return 0;
+            }
+
+            let totalBudget = 0;
+            let totalSpent = 0;
+
+            // Calculate total budget and total spent across all categories
+            for (const [category, budget] of Object.entries(this.budgets)) {
+                if (budget && typeof budget === 'object' && typeof budget.amount === 'number' && !isNaN(budget.amount)) {
+                    totalBudget += budget.amount;
+                    const categorySpent = this.calculateCategorySpending(category, budget.period || 'monthly');
+                    totalSpent += (typeof categorySpent === 'number' && !isNaN(categorySpent)) ? categorySpent : 0;
+                }
+            }
+
+            // Return remaining budget (don't allow negative values)
+            const remaining = totalBudget - totalSpent;
+            return Math.max(0, remaining);
+        } catch (error) {
+            console.error('Error calculating total budget remaining:', error);
+            return 0;
         }
-
-        let totalBudget = 0;
-        let totalSpent = 0;
-
-        Object.entries(this.budgets).forEach(([category, budget]) => {
-            totalBudget += budget.amount;
-            totalSpent += this.calculateCategorySpending(category, budget.period);
-        });
-
-        return Math.max(0, totalBudget - totalSpent); // Don't show negative remaining
     }
 
     // UI Updates
