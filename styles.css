@@ -242,6 +242,10 @@ body {
     color: #e74c3c;
 }
 
+.amount.budget-remaining {
+    color: #27ae60;
+}
+
 /* Section Headers */
 .section-header {
     display: flex;

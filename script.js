@@ -182,6 +182,22 @@ class BudgetApp {
             .reduce((sum, t) => sum + t.amount, 0);
     }
 
+    calculateTotalBudgetRemaining() {
+        if (Object.keys(this.budgets).length === 0) {
+            return 0; // No budgets set, so no remaining budget
+        }
+
+        let totalBudget = 0;
+        let totalSpent = 0;
+
+        Object.entries(this.budgets).forEach(([category, budget]) => {
+            totalBudget += budget.amount;
+            totalSpent += this.calculateCategorySpending(category, budget.period);
+        });
+
+        return Math.max(0, totalBudget - totalSpent); // Don't show negative remaining
+    }
+
     // UI Updates
     updateDashboard() {
         this.updateBalanceDisplay();
@@ -192,10 +208,24 @@ class BudgetApp {
 
     updateBalanceDisplay() {
         const { income, expenses, balance } = this.calculateBalance();
+        const totalLeft = this.calculateTotalBudgetRemaining();
         
         document.getElementById('currentBalance').textContent = this.formatCurrency(balance);
         document.getElementById('totalIncome').textContent = this.formatCurrency(income);
         document.getElementById('totalExpenses').textContent = this.formatCurrency(expenses);
+        
+        const totalLeftElement = document.getElementById('totalLeft');
+        
+        if (totalLeftElement) {
+            totalLeftElement.textContent = this.formatCurrency(totalLeft);
+            
+            // Update total left color based on amount
+            if (totalLeft > 0) {
+                totalLeftElement.style.color = '#27ae60'; // Green for positive remaining budget
+            } else {
+                totalLeftElement.style.color = '#7f8c8d'; // Gray for no budget remaining
+            }
+        }
         
         // Update balance color based on amount
         const balanceElement = document.getElementById('currentBalance');
