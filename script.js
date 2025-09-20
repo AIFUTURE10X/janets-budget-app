@@ -313,7 +313,7 @@ class BudgetApp {
         this.checkAlerts();
         
         // Request notification permission if enabled
-        if (this.settings.enableNotifications) {
+        if (this.settings && this.settings.enableNotifications) {
             this.requestNotificationPermission();
         }
     }
@@ -330,7 +330,7 @@ class BudgetApp {
         this.checkAlerts();
         
         // Request notification permission if enabled
-        if (this.settings.enableNotifications) {
+        if (this.settings && this.settings.enableNotifications) {
             this.requestNotificationPermission();
         }
     }
