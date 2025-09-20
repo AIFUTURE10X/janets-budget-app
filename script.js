@@ -220,24 +220,10 @@ class BudgetApp {
 
     updateBalanceDisplay() {
         const { income, expenses, balance } = this.calculateBalance();
-        const totalLeft = this.calculateTotalBudgetRemaining();
         
         document.getElementById('currentBalance').textContent = this.formatCurrency(balance);
         document.getElementById('totalIncome').textContent = this.formatCurrency(income);
         document.getElementById('totalExpenses').textContent = this.formatCurrency(expenses);
-        
-        const totalLeftElement = document.getElementById('totalLeft');
-        
-        if (totalLeftElement) {
-            totalLeftElement.textContent = this.formatCurrency(totalLeft);
-            
-            // Update total left color based on amount
-            if (totalLeft > 0) {
-                totalLeftElement.style.color = '#27ae60'; // Green for positive remaining budget
-            } else {
-                totalLeftElement.style.color = '#7f8c8d'; // Gray for no budget remaining
-            }
-        }
         
         // Update balance color based on amount
         const balanceElement = document.getElementById('currentBalance');
@@ -325,9 +311,14 @@ class BudgetApp {
                 <div class="transaction-amount ${transaction.type}">
                     ${transaction.type === 'income' ? '+' : '-'}${this.formatCurrency(transaction.amount)}
                 </div>
-                <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="app.deleteTransaction('${transaction.id}')">
-                    <i class="fas fa-trash"></i>
-                </button>
+                <div class="transaction-actions">
+                    <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-right: 0.5rem;" onclick="app.openTransactionModal(app.transactions.find(t => t.id === '${transaction.id}'))">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="app.deleteTransaction('${transaction.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
         `).join('');
     }
