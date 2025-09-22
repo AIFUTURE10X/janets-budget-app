@@ -41,32 +41,42 @@ class BudgetApp {
 
     // Asynchronous data initialization
     async initializeDataAsync() {
-        // Determine storage type based on device
-        this.useSessionStorage = this.isMobile;
-        this.storageType = this.useSessionStorage ? 'sessionStorage' : 'localStorage';
+        // Use localStorage for both mobile and desktop to ensure sync
+        this.useSessionStorage = false;
+        this.storageType = 'localStorage';
         
-        console.log('Initializing data with storage type:', this.storageType);
+        console.log('Initializing data with storage type:', this.storageType, 'isMobile:', this.isMobile);
         
         // Load data
         this.loadData();
         
         // Check version without blocking operations
         await this.checkVersionAsync();
+        
+        // Force sync if mobile device to ensure data consistency
+        if (this.isMobile) {
+            await this.ensureMobileSync();
+        }
     }
 
     // Initialize data with mobile compatibility (synchronous fallback)
     initializeData() {
-        // Determine storage type based on device
-        this.useSessionStorage = this.isMobile;
-        this.storageType = this.useSessionStorage ? 'sessionStorage' : 'localStorage';
+        // Use localStorage for both mobile and desktop to ensure sync
+        this.useSessionStorage = false;
+        this.storageType = 'localStorage';
         
-        console.log('Initializing data with storage type:', this.storageType);
+        console.log('Initializing data with storage type:', this.storageType, 'isMobile:', this.isMobile);
         
         // Load data
         this.loadData();
         
         // Simple version check without blocking
         this.checkVersionSimple();
+        
+        // Force sync if mobile device to ensure data consistency
+        if (this.isMobile) {
+            this.ensureMobileSyncSimple();
+        }
     }
 
     // Async version check without blocking operations
@@ -98,10 +108,112 @@ class BudgetApp {
             const storedVersion = storage.getItem(this.STORAGE_VERSION_KEY);
             
             if (storedVersion !== this.APP_VERSION) {
+                console.log('Version updated to:', this.APP_VERSION);
                 storage.setItem(this.STORAGE_VERSION_KEY, this.APP_VERSION);
             }
         } catch (error) {
             console.warn('Version check failed:', error);
+        }
+    }
+
+    // Ensure mobile sync (async version)
+    async ensureMobileSync() {
+        try {
+            console.log('Ensuring mobile sync...');
+            
+            // Check if there's any sessionStorage data that needs to be migrated
+            await this.migrateMobileData();
+            
+            // Force refresh of UI to ensure consistency
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            this.updateDashboard();
+            this.displayAllTransactions();
+            
+            console.log('Mobile sync completed');
+        } catch (error) {
+            console.error('Mobile sync failed:', error);
+        }
+    }
+
+    // Ensure mobile sync (synchronous version)
+    ensureMobileSyncSimple() {
+        try {
+            console.log('Ensuring mobile sync (simple)...');
+            
+            // Check if there's any sessionStorage data that needs to be migrated
+            this.migrateMobileDataSimple();
+            
+            // Force refresh of UI to ensure consistency
+            this.updateDashboard();
+            this.displayAllTransactions();
+            
+            console.log('Mobile sync completed (simple)');
+        } catch (error) {
+            console.error('Mobile sync failed:', error);
+        }
+    }
+
+    // Migrate data from sessionStorage to localStorage if needed (async)
+    async migrateMobileData() {
+        try {
+            // Check if there's data in sessionStorage that's not in localStorage
+            const sessionTransactions = sessionStorage.getItem('budgetApp_transactions');
+            const localTransactions = localStorage.getItem('budgetApp_transactions');
+            
+            if (sessionTransactions && !localTransactions) {
+                console.log('Migrating data from sessionStorage to localStorage...');
+                
+                // Migrate all data
+                const keys = ['budgetApp_transactions', 'budgetApp_budgets', 'budgetApp_settings', 'budgetApp_categories'];
+                for (const key of keys) {
+                    const sessionData = sessionStorage.getItem(key);
+                    if (sessionData) {
+                        localStorage.setItem(key, sessionData);
+                    }
+                }
+                
+                // Clear sessionStorage after migration
+                sessionStorage.clear();
+                
+                // Reload data from localStorage
+                this.loadData();
+                
+                console.log('Data migration completed');
+            }
+        } catch (error) {
+            console.error('Data migration failed:', error);
+        }
+    }
+
+    // Migrate data from sessionStorage to localStorage if needed (sync)
+    migrateMobileDataSimple() {
+        try {
+            // Check if there's data in sessionStorage that's not in localStorage
+            const sessionTransactions = sessionStorage.getItem('budgetApp_transactions');
+            const localTransactions = localStorage.getItem('budgetApp_transactions');
+            
+            if (sessionTransactions && !localTransactions) {
+                console.log('Migrating data from sessionStorage to localStorage...');
+                
+                // Migrate all data
+                const keys = ['budgetApp_transactions', 'budgetApp_budgets', 'budgetApp_settings', 'budgetApp_categories'];
+                for (const key of keys) {
+                    const sessionData = sessionStorage.getItem(key);
+                    if (sessionData) {
+                        localStorage.setItem(key, sessionData);
+                    }
+                }
+                
+                // Clear sessionStorage after migration
+                sessionStorage.clear();
+                
+                // Reload data from localStorage
+                this.loadData();
+                
+                console.log('Data migration completed');
+            }
+        } catch (error) {
+            console.error('Data migration failed:', error);
         }
     }
 
@@ -232,7 +344,8 @@ class BudgetApp {
     // Load data from storage
     loadData() {
         try {
-            const storage = this.useSessionStorage ? sessionStorage : localStorage;
+            // Always use localStorage for consistency between mobile and desktop
+            const storage = localStorage;
             
             // Load transactions
             const transactionsData = storage.getItem('budgetApp_transactions');
@@ -257,31 +370,74 @@ class BudgetApp {
                 expense: ['Food', 'Transportation', 'Entertainment', 'Bills', 'Shopping', 'Healthcare', 'Other']
             };
             
-            console.log('Data loaded:', {
+            console.log('Data loaded from localStorage:', {
                 transactions: this.transactions.length,
                 budgets: Object.keys(this.budgets).length,
-                storageType: this.storageType
+                isMobile: this.isMobile,
+                lastSave: storage.getItem('budgetApp_lastSave')
             });
             
         } catch (error) {
-            console.error('Error loading data:', error);
-            this.initializeDefaultData();
+            console.error('Error loading data from localStorage:', error);
+            // Try fallback to sessionStorage
+            try {
+                console.log('Trying fallback to sessionStorage...');
+                const sessionStorage = window.sessionStorage;
+                const transactionsData = sessionStorage.getItem('budgetApp_transactions');
+                if (transactionsData) {
+                    this.transactions = JSON.parse(transactionsData);
+                    console.log('Loaded transactions from sessionStorage as fallback');
+                } else {
+                    this.initializeDefaultData();
+                }
+            } catch (fallbackError) {
+                console.error('Fallback load also failed:', fallbackError);
+                this.initializeDefaultData();
+            }
         }
     }
 
     // Save data to storage
     saveData() {
         try {
-            const storage = this.useSessionStorage ? sessionStorage : localStorage;
+            // Always use localStorage for consistency between mobile and desktop
+            const storage = localStorage;
             
             storage.setItem('budgetApp_transactions', JSON.stringify(this.transactions));
             storage.setItem('budgetApp_budgets', JSON.stringify(this.budgets));
             storage.setItem('budgetApp_settings', JSON.stringify(this.settings));
             storage.setItem('budgetApp_categories', JSON.stringify(this.categories));
             
-            console.log('Data saved to', this.storageType);
+            console.log('Data saved to localStorage (mobile:', this.isMobile, ')');
+            
+            // Add sync timestamp for debugging
+            storage.setItem('budgetApp_lastSave', new Date().toISOString());
+            
+            // Update sync status
+            if (typeof this.updateSyncStatus === 'function') {
+                this.updateSyncStatus('Data saved', 'success');
+            }
+            
         } catch (error) {
             console.error('Error saving data:', error);
+            // Fallback to sessionStorage if localStorage fails
+            try {
+                sessionStorage.setItem('budgetApp_transactions', JSON.stringify(this.transactions));
+                sessionStorage.setItem('budgetApp_budgets', JSON.stringify(this.budgets));
+                sessionStorage.setItem('budgetApp_settings', JSON.stringify(this.settings));
+                sessionStorage.setItem('budgetApp_categories', JSON.stringify(this.categories));
+                console.log('Fallback: Data saved to sessionStorage');
+                
+                // Update sync status for fallback
+                if (typeof this.updateSyncStatus === 'function') {
+                    this.updateSyncStatus('Data saved (fallback)', 'success');
+                }
+            } catch (fallbackError) {
+                console.error('Fallback save also failed:', fallbackError);
+                if (typeof this.updateSyncStatus === 'function') {
+                    this.updateSyncStatus('Save failed', 'error');
+                }
+            }
         }
     }
 
@@ -329,6 +485,9 @@ class BudgetApp {
         this.displayAllTransactions();
         this.checkAlerts();
         
+        // Initialize sync status
+        this.initializeSyncStatus();
+        
         // Request notification permission if enabled
         if (this.settings && this.settings.enableNotifications) {
             this.requestNotificationPermission();
@@ -345,6 +504,30 @@ class BudgetApp {
                 this.addTransaction();
             });
         }
+
+        // Sync controls
+        const exportBtn = document.getElementById('exportDataBtn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => this.exportData());
+        }
+
+        const importBtn = document.getElementById('importDataBtn');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => this.triggerImport());
+        }
+
+        const importFileInput = document.getElementById('importFileInput');
+        if (importFileInput) {
+            importFileInput.addEventListener('change', (e) => this.importData(e));
+        }
+
+        const forceSyncBtn = document.getElementById('forceSyncBtn');
+        if (forceSyncBtn) {
+            forceSyncBtn.addEventListener('click', () => this.forceSync());
+        }
+
+        // Listen for storage changes from other tabs/windows
+        window.addEventListener('storage', (e) => this.handleStorageChange(e));
 
         // Budget form
         const budgetForm = document.getElementById('budgetForm');
@@ -435,6 +618,39 @@ class BudgetApp {
         const cancelTransaction = document.getElementById('cancelTransaction');
         if (cancelTransaction) {
             cancelTransaction.addEventListener('click', () => this.closeModal(document.getElementById('transactionModal')));
+        }
+
+        // New category functionality
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        if (addCategoryBtn) {
+            console.log('Add Category button found, attaching event listener');
+            addCategoryBtn.addEventListener('click', (e) => {
+                console.log('Add Category button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                this.showNewCategoryInput();
+            });
+        } else {
+            console.error('Add Category button not found!');
+        }
+        
+        const saveNewCategory = document.getElementById('saveNewCategory');
+        if (saveNewCategory) {
+            saveNewCategory.addEventListener('click', () => this.saveNewCategory());
+        }
+        
+        const cancelNewCategory = document.getElementById('cancelNewCategory');
+        if (cancelNewCategory) {
+            cancelNewCategory.addEventListener('click', () => this.hideNewCategoryInput());
+        }
+        
+        const newCategoryName = document.getElementById('newCategoryName');
+        if (newCategoryName) {
+            newCategoryName.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.saveNewCategory();
+                }
+            });
         }
     }
 
@@ -717,11 +933,102 @@ class BudgetApp {
         ).join('');
     }
 
+    // New Category Management
+    showNewCategoryInput() {
+        console.log('showNewCategoryInput called');
+        const newCategoryInput = document.getElementById('newCategoryInput');
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        
+        if (newCategoryInput && addCategoryBtn) {
+            console.log('Elements found, showing new category input');
+            newCategoryInput.style.display = 'block';
+            addCategoryBtn.style.display = 'none';
+            
+            // Focus on the input field
+            const nameInput = document.getElementById('newCategoryName');
+            if (nameInput) {
+                nameInput.focus();
+            }
+        } else {
+            console.error('Required elements not found:', { newCategoryInput, addCategoryBtn });
+        }
+    }
+
+    hideNewCategoryInput() {
+        const newCategoryInput = document.getElementById('newCategoryInput');
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        
+        if (newCategoryInput && addCategoryBtn) {
+            newCategoryInput.style.display = 'none';
+            addCategoryBtn.style.display = 'flex';
+            
+            // Clear the input
+            const nameInput = document.getElementById('newCategoryName');
+            if (nameInput) {
+                nameInput.value = '';
+            }
+        }
+    }
+
+    saveNewCategory() {
+        const newCategoryName = document.getElementById('newCategoryName').value.trim();
+        const transactionType = document.getElementById('transactionType').value;
+        
+        if (!newCategoryName) {
+            this.showAlert('Please enter a category name', 'error');
+            return;
+        }
+
+        // Check if category already exists
+        if (this.categories[transactionType].includes(newCategoryName)) {
+            this.showAlert('Category already exists', 'error');
+            return;
+        }
+
+        // Add the new category
+        this.categories[transactionType].push(newCategoryName);
+        
+        // Save to localStorage
+        this.saveData();
+        
+        // Update the category dropdown
+        this.updateCategoriesForType(transactionType);
+        
+        // Select the new category
+        document.getElementById('transactionCategory').value = newCategoryName;
+        
+        // Hide the input and show success message
+        this.hideNewCategoryInput();
+        this.showAlert(`Category "${newCategoryName}" added successfully!`, 'success');
+        
+        // Update other category dropdowns immediately
+        this.populateFilterCategories();
+        
+        // If it's an expense category, update budget categories dropdown
+        if (transactionType === 'expense') {
+            this.populateBudgetCategories();
+            
+            // If budget modal is open, also update the budget category dropdown
+            const budgetModal = document.getElementById('budgetModal');
+            if (budgetModal && budgetModal.classList.contains('active')) {
+                // Add the new category to budget dropdown and select it
+                const budgetCategorySelect = document.getElementById('budgetCategory');
+                if (budgetCategorySelect) {
+                    const option = document.createElement('option');
+                    option.value = newCategoryName;
+                    option.textContent = newCategoryName;
+                    budgetCategorySelect.appendChild(option);
+                    budgetCategorySelect.value = newCategoryName;
+                }
+            }
+        }
+    }
+
     // Open modal
     openModal(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
-            modal.style.display = 'block';
+            modal.classList.add('active');
             
             // Set default date for transaction modal
             if (modalId === 'transactionModal') {
@@ -729,6 +1036,9 @@ class BudgetApp {
                 if (dateInput && !dateInput.value) {
                     dateInput.value = new Date().toISOString().split('T')[0];
                 }
+                
+                // Ensure new category input is hidden
+                this.hideNewCategoryInput();
             }
         }
     }
@@ -736,7 +1046,7 @@ class BudgetApp {
     // Close modal
     closeModal(modal) {
         if (modal) {
-            modal.style.display = 'none';
+            modal.classList.remove('active');
         }
     }
 
@@ -1148,6 +1458,195 @@ class BudgetApp {
             this.updateDashboard();
             this.closeModal(document.getElementById('settingsModal'));
             this.showAlert('All data cleared successfully!', 'success');
+        }
+    }
+
+    // Trigger import file dialog
+    triggerImport() {
+        const fileInput = document.getElementById('importFileInput');
+        if (fileInput) {
+            fileInput.click();
+        }
+    }
+
+    // Import data from file
+    importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        this.updateSyncStatus('Importing data...', 'syncing');
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                
+                // Validate imported data structure
+                if (!this.validateImportedData(importedData)) {
+                    throw new Error('Invalid data format');
+                }
+
+                // Backup current data before import
+                const backupData = {
+                    transactions: this.transactions,
+                    budgets: this.budgets,
+                    settings: this.settings,
+                    categories: this.categories
+                };
+                localStorage.setItem('budgetApp_backup_before_import', JSON.stringify(backupData));
+
+                // Import the data
+                this.transactions = importedData.transactions || [];
+                this.budgets = importedData.budgets || {};
+                this.settings = importedData.settings || this.settings;
+                this.categories = importedData.categories || this.categories;
+
+                // Save imported data
+                this.saveData();
+
+                // Update UI
+                this.updateDashboard();
+                this.displayAllTransactions();
+                this.populateCategories();
+                this.updateBudgetsList();
+
+                this.showAlert(`Data imported successfully! ${this.transactions.length} transactions loaded.`, 'success');
+                this.updateSyncStatus('Import completed', 'success');
+
+                console.log('Data imported:', {
+                    transactions: this.transactions.length,
+                    budgets: Object.keys(this.budgets).length,
+                    from: importedData.exportDate || 'unknown date'
+                });
+
+            } catch (error) {
+                console.error('Import failed:', error);
+                this.showAlert('Failed to import data. Please check the file format.', 'error');
+                this.updateSyncStatus('Import failed', 'error');
+            }
+        };
+
+        reader.readAsText(file);
+        event.target.value = ''; // Clear the input
+    }
+
+    // Validate imported data structure
+    validateImportedData(data) {
+        if (!data || typeof data !== 'object') return false;
+        if (!Array.isArray(data.transactions)) return false;
+        if (data.budgets && typeof data.budgets !== 'object') return false;
+        if (data.settings && typeof data.settings !== 'object') return false;
+        if (data.categories && typeof data.categories !== 'object') return false;
+        return true;
+    }
+
+    // Force sync - refresh all data and UI
+    forceSync() {
+        this.updateSyncStatus('Syncing...', 'syncing');
+        
+        try {
+            // Reload data from storage
+            this.loadData();
+            
+            // Update all UI components
+            this.updateDashboard();
+            this.displayAllTransactions();
+            this.populateCategories();
+            this.populateFilterCategories();
+            this.populateBudgetCategories();
+            this.updateBudgetsList();
+            
+            // Check for alerts
+            this.checkAlerts();
+            
+            this.showAlert('Data synced successfully!', 'success');
+            this.updateSyncStatus('Sync completed', 'success');
+            
+            console.log('Force sync completed:', {
+                transactions: this.transactions.length,
+                budgets: Object.keys(this.budgets).length,
+                timestamp: new Date().toISOString()
+            });
+            
+        } catch (error) {
+            console.error('Force sync failed:', error);
+            this.showAlert('Sync failed. Please try again.', 'error');
+            this.updateSyncStatus('Sync failed', 'error');
+        }
+    }
+
+    // Handle storage changes from other tabs/windows
+    handleStorageChange(event) {
+        if (!event.key || !event.key.startsWith('budgetApp_')) return;
+        
+        console.log('Storage change detected:', event.key);
+        
+        // Debounce rapid changes
+        clearTimeout(this.storageChangeTimeout);
+        this.storageChangeTimeout = setTimeout(() => {
+            this.updateSyncStatus('External change detected', 'syncing');
+            
+            // Reload data and update UI
+            this.loadData();
+            this.updateDashboard();
+            this.displayAllTransactions();
+            
+            this.updateSyncStatus('Data updated', 'success');
+            this.showAlert('Data updated from another tab/device', 'info');
+        }, 500);
+    }
+
+    // Update sync status indicator
+    updateSyncStatus(message, status) {
+        const statusElement = document.getElementById('syncStatusText');
+        const statusIcon = document.getElementById('syncStatusIcon');
+        const statusContainer = document.getElementById('syncStatus');
+        const lastUpdateElement = document.getElementById('syncLastUpdate');
+        
+        if (statusElement) {
+            statusElement.textContent = message;
+        }
+        
+        if (statusContainer) {
+            // Remove existing status classes
+            statusContainer.classList.remove('sync-ready', 'sync-syncing', 'sync-success', 'sync-error');
+            // Add new status class
+            statusContainer.classList.add(`sync-${status}`);
+        }
+        
+        if (lastUpdateElement) {
+            lastUpdateElement.textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+        }
+        
+        // Auto-reset success/error status after 3 seconds
+        if (status === 'success' || status === 'error') {
+            setTimeout(() => {
+                if (statusContainer) {
+                    statusContainer.classList.remove(`sync-${status}`);
+                    statusContainer.classList.add('sync-ready');
+                }
+                if (statusElement) {
+                    statusElement.textContent = 'Ready to sync';
+                }
+            }, 3000);
+        }
+    }
+
+    // Initialize sync status on app start
+    initializeSyncStatus() {
+        const lastSave = localStorage.getItem('budgetApp_lastSave');
+        const deviceInfo = this.isMobile ? 'Mobile' : 'Desktop';
+        
+        if (lastSave) {
+            const lastSaveDate = new Date(lastSave);
+            this.updateSyncStatus(`${deviceInfo} - Ready`, 'ready');
+            
+            const lastUpdateElement = document.getElementById('syncLastUpdate');
+            if (lastUpdateElement) {
+                lastUpdateElement.textContent = `Last save: ${lastSaveDate.toLocaleString()}`;
+            }
+        } else {
+            this.updateSyncStatus(`${deviceInfo} - No data`, 'ready');
         }
     }
 }

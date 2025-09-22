@@ -17,12 +17,18 @@
                     <button class="btn btn-primary" id="addTransactionBtn">
                         <i class="fas fa-plus"></i> Add Transaction
                     </button>
-                    <button class="btn btn-success" id="syncBtn">
-                        <i class="fas fa-cloud-upload-alt"></i> Sync to Cloud
-                    </button>
-                    <button class="btn btn-warning mobile-sync-btn" id="mobileSyncBtn" style="display: none;">
-                        <i class="fas fa-sync"></i> Force Sync
-                    </button>
+                    <div class="sync-controls">
+                        <button class="btn btn-success" id="exportDataBtn" title="Export data for sync">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <button class="btn btn-info" id="importDataBtn" title="Import data from another device">
+                            <i class="fas fa-upload"></i> Import
+                        </button>
+                        <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                        <button class="btn btn-warning" id="forceSyncBtn" title="Force refresh data">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
                     <button class="btn btn-secondary" id="settingsBtn">
                         <i class="fas fa-cog"></i> Settings
                     </button>
@@ -49,6 +55,12 @@
                             <span class="label">Total Expenses:</span>
                             <span class="amount expense" id="totalExpenses">$0.00</span>
                         </div>
+                    </div>
+                    <!-- Sync Status Indicator -->
+                    <div class="sync-status" id="syncStatus">
+                        <i class="fas fa-circle" id="syncStatusIcon"></i>
+                        <span id="syncStatusText">Checking sync status...</span>
+                        <small id="syncLastUpdate"></small>
                     </div>
                     <!-- Debug and Sync Controls -->
                     <div style="margin-top: 15px; text-align: center;">

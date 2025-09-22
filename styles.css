@@ -476,10 +476,188 @@ body {
 }
 
 .modal.active {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     animation: fadeIn 0.3s ease;
+}
+
+/* Ensure all modals are properly centered */
+.modal.active,
+#transactionModal.active,
+#budgetModal.active,
+#settingsModal.active,
+#allTransactionsModal.active {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    transform: none !important;
+    margin: 0 !important;
+    padding: 1rem !important;
+    box-sizing: border-box !important;
+}
+
+/* Mobile responsive styles for transaction modal */
+@media (max-width: 768px) {
+    .modal.active {
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0.5rem !important;
+    }
+    
+    .enhanced-modal,
+    .modal-content {
+        width: calc(100% - 1rem) !important;
+        max-width: none !important;
+        max-height: 95vh !important;
+        margin: 0.5rem !important;
+        border-radius: 16px !important;
+        min-height: auto !important;
+    }
+    
+    .enhanced-body {
+        padding: 1.5rem !important;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 1rem !important;
+    }
+    
+    /* Ensure category group spans full width */
+    .category-group {
+        grid-column: 1 / -1 !important;
+    }
+    
+    .enhanced-label {
+        font-size: 0.95rem !important;
+        margin-bottom: 0.8rem !important;
+    }
+    
+    .enhanced-input,
+    .enhanced-select {
+        font-size: 16px !important; /* Prevents zoom on iOS */
+        padding: 0.8rem 1rem !important;
+        border-radius: 8px !important;
+    }
+    
+    .modal-header {
+        padding: 1.2rem 1.5rem !important;
+    }
+    
+    .modal-header h3 {
+        font-size: 1.2rem !important;
+    }
+    
+    .btn {
+        padding: 0.8rem 1.5rem !important;
+        font-size: 1rem !important;
+        min-height: 44px !important; /* Better touch target */
+    }
+    
+    .form-actions {
+        gap: 1rem !important;
+        margin-top: 2rem !important;
+    }
+    
+    /* Mobile form improvements */
+    .category-input-container {
+        flex-direction: column !important;
+        gap: 1rem !important;
+    }
+    
+    .enhanced-add-btn {
+        width: 100% !important;
+        justify-content: center !important;
+        padding: 0.8rem !important;
+        font-size: 0.95rem !important;
+    }
+    
+    .new-category-section {
+        margin-top: 1rem !important;
+    }
+    
+    .new-category-actions {
+        flex-direction: row !important;
+        gap: 0.8rem !important;
+        margin-top: 1rem !important;
+    }
+    
+    .new-category-actions .btn {
+        flex: 1 !important;
+        padding: 0.7rem !important;
+        font-size: 0.9rem !important;
+    }
+    
+    /* Modal footer improvements */
+    .modal-footer,
+    .enhanced-footer {
+        padding: 1.5rem !important;
+        gap: 1rem !important;
+        flex-direction: column !important;
+    }
+    
+    .modal-footer .btn,
+    .enhanced-footer .btn {
+        width: 100% !important;
+        order: 2;
+    }
+    
+    .modal-footer .btn-primary,
+    .enhanced-footer .btn-primary {
+        order: 1 !important;
+    }
+    
+    /* Optional text styling */
+    .optional-text {
+        font-size: 0.8rem !important;
+        opacity: 0.7 !important;
+    }
+    
+    /* Description input */
+    .enhanced-input[placeholder] {
+        font-size: 16px !important;
+    }
+    
+    /* Additional mobile improvements */
+    .close-btn {
+        padding: 0.8rem !important;
+        font-size: 1.3rem !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+    
+    /* Better mobile form spacing */
+    .enhanced-form {
+        gap: 1.5rem !important;
+    }
+    
+    /* Improved select styling for mobile */
+    .enhanced-select {
+        appearance: none !important;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 1rem center !important;
+        background-size: 1rem !important;
+        padding-right: 3rem !important;
+    }
+    
+    /* Better mobile header */
+    .header-actions {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
+    }
+    
+    .header-actions .btn {
+        flex: 0 1 auto !important;
+        min-width: 120px !important;
+    }
 }
 
 .modal-content {
@@ -1243,4 +1421,67 @@ body {
 .sync-progress .progress-text {
     font-size: 0.85rem;
     color: #6c757d;
+}
+
+/* Sync Controls Styling */
+.sync-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.sync-status {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.sync-status i {
+    margin-right: 0.5rem;
+}
+
+.sync-status.sync-ready i {
+    color: #28a745;
+}
+
+.sync-status.sync-syncing i {
+    color: #ffc107;
+    animation: pulse 1.5s infinite;
+}
+
+.sync-status.sync-success i {
+    color: #28a745;
+}
+
+.sync-status.sync-error i {
+    color: #dc3545;
+}
+
+.sync-status small {
+    display: block;
+    margin-top: 0.25rem;
+    opacity: 0.7;
+    font-size: 0.8rem;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Additional mobile improvements for sync controls */
+@media (max-width: 768px) {
+    .sync-controls {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+    
+    .sync-controls .btn {
+        font-size: 0.8rem !important;
+        padding: 0.4rem 0.8rem !important;
+    }
 }
