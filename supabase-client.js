@@ -29,11 +29,14 @@ class SupabaseSync {
                 this.config.anonKey
             );
 
-            // Set device context for RLS
-            await this.supabase.rpc('set_config', {
-                setting_name: 'app.device_id',
-                setting_value: this.deviceId
-            });
+            // Test the connection with a simple query
+            const { data, error } = await this.supabase
+                .from(this.config.tables.users)
+                .select('count', { count: 'exact', head: true });
+
+            if (error && error.code !== 'PGRST116') {
+                throw new Error(`Database connection failed: ${error.message}`);
+            }
 
             // Register or get user
             await this.registerDevice();
@@ -424,6 +427,28 @@ class SupabaseSync {
             this.supabase.removeChannel(this.realtimeSubscription);
             this.realtimeSubscription = null;
         }
+    }
+
+    // Alias methods for test compatibility
+    async ensureDeviceUser() {
+        // This is an alias for registerDevice to match test expectations
+        await this.registerDevice();
+        return this.deviceId;
+    }
+
+    async uploadData(data) {
+        // This is an alias for uploadToCloud to match test expectations
+        return await this.uploadToCloud(data);
+    }
+
+    async downloadData() {
+        // This is an alias for downloadFromCloud to match test expectations
+        return await this.downloadFromCloud();
+    }
+
+    // Setup real-time sync with callback
+    async setupRealTimeSync(callback) {
+        this.setupRealtimeSync(callback);
     }
 }
 
