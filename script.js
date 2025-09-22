@@ -1787,14 +1787,27 @@ class BudgetApp {
         }
     }
 
-    // Perform cloud sync (upload local data)
+    // Perform true two-way cloud sync (download first, then upload merged data)
     async performCloudSync() {
         if (!this.supabaseSync || !this.cloudSyncEnabled) return false;
 
         try {
-            this.updateSyncStatus('Syncing to cloud...', 'syncing');
+            this.updateSyncStatus('Syncing with cloud...', 'syncing');
             
-            // Prepare data for upload
+            // Step 1: Download existing cloud data first
+            console.log('Downloading cloud data...');
+            const cloudData = await this.supabaseSync.downloadData();
+            
+            if (cloudData) {
+                console.log('Cloud data found, merging with local data...');
+                // Step 2: Merge cloud data with local data
+                await this.mergeCloudData(cloudData);
+            } else {
+                console.log('No cloud data found, will upload local data...');
+            }
+            
+            // Step 3: Upload the merged data back to cloud
+            console.log('Uploading merged data to cloud...');
             const dataToSync = {
                 transactions: this.transactions || [],
                 budgets: this.budgets || [],
@@ -1803,12 +1816,12 @@ class BudgetApp {
                 lastModified: new Date().toISOString()
             };
 
-            // Upload to cloud
             const success = await this.supabaseSync.uploadData(dataToSync);
             
             if (success) {
                 this.lastCloudSync = new Date();
-                this.updateSyncStatus('Synced to cloud', 'success');
+                this.updateSyncStatus('Synced with cloud', 'success');
+                console.log('Two-way sync completed successfully');
                 return true;
             } else {
                 this.updateSyncStatus('Cloud sync failed', 'error');
@@ -1826,9 +1839,13 @@ class BudgetApp {
         try {
             if (!cloudData) return;
 
+            console.log('Merging cloud data:', cloudData);
+
             // Merge transactions
             if (cloudData.transactions) {
+                const originalCount = this.transactions ? this.transactions.length : 0;
                 this.transactions = this.mergeArrayData(this.transactions || [], cloudData.transactions, 'id');
+                console.log(`Transactions merged: ${originalCount} local + ${cloudData.transactions.length} cloud = ${this.transactions.length} total`);
             }
 
             // Merge budgets
@@ -1849,9 +1866,11 @@ class BudgetApp {
             // Save merged data locally
             this.saveData();
             
-            // Update UI
-            this.updateUI();
+            // Update UI to reflect merged data
+            this.updateDisplay();
             this.updateChart();
+
+            console.log('Cloud data merge completed');
 
         } catch (error) {
             console.error('Error merging cloud data:', error);
