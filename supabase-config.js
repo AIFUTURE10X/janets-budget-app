@@ -6,7 +6,7 @@ const SUPABASE_CONFIG = {
     url: 'https://mmesxyymubtqcqbjohym.supabase.co',
     
     // Your Supabase anon/public key (from your Supabase dashboard)
-    anonKey: 'sb_publishable_LAxQ1iXGYH6cQ-3dMb4GfA_V6127dne',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tZXN4eXltdWJ0cWNxYmpvaHltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg0OTcwODUsImV4cCI6MjA3NDA3MzA4NX0.9oonmo-yH_vMowuQWgBwe92EXtOyfAg9W0rJTrgs9mc',
     
     // Database table names
     tables: {

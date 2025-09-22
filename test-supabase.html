@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .log { background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Supabase Connection Test</h1>
+        
+        <div id="results"></div>
+        
+        <button onclick="runFullTest()">🚀 Run Full Test</button>
+        <button onclick="testConnection()">🔗 Test Connection</button>
+        <button onclick="testAuth()">🔐 Test Auth</button>
+        <button onclick="testDatabase()">💾 Test Database</button>
+        <button onclick="clearResults()">🧹 Clear Results</button>
+        
+        <div id="logs" class="log"></div>
+    </div>
+
+    <!-- Load Supabase and config -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="supabase-client.js"></script>
+
+    <script>
+        let testResults = [];
+        let supabaseSync = null;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('logs');
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function addResult(test, status, message) {
+            testResults.push({ test, status, message });
+            updateResults();
+        }
+
+        function updateResults() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = testResults.map(result => 
+                `<div class="test-result ${result.status}">
+                    <strong>${result.test}:</strong> ${result.message}
+                </div>`
+            ).join('');
+        }
+
+        function clearResults() {
+            testResults = [];
+            updateResults();
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        async function testConnection() {
+            log('🔗 Testing Supabase connection...');
+            
+            try {
+                // Check if config is loaded
+                if (!window.SUPABASE_CONFIG) {
+                    throw new Error('SUPABASE_CONFIG not found');
+                }
+                addResult('Config Check', 'success', 'Configuration loaded successfully');
+                log(`✅ Config loaded: ${window.SUPABASE_CONFIG.url}`);
+
+                // Check if SupabaseSync class is available
+                if (!window.SupabaseSync) {
+                    throw new Error('SupabaseSync class not found');
+                }
+                addResult('Class Check', 'success', 'SupabaseSync class available');
+                log('✅ SupabaseSync class found');
+
+                // Create instance
+                supabaseSync = new window.SupabaseSync(window.SUPABASE_CONFIG);
+                addResult('Instance Creation', 'success', 'SupabaseSync instance created');
+                log('✅ SupabaseSync instance created');
+
+                // Initialize connection
+                const initialized = await supabaseSync.initialize();
+                if (initialized) {
+                    addResult('Connection Test', 'success', 'Successfully connected to Supabase');
+                    log('✅ Supabase connection successful');
+                } else {
+                    throw new Error('Failed to initialize Supabase connection');
+                }
+
+            } catch (error) {
+                addResult('Connection Test', 'error', error.message);
+                log(`❌ Connection failed: ${error.message}`);
+            }
+        }
+
+        async function testAuth() {
+            log('🔐 Testing authentication...');
+            
+            try {
+                if (!supabaseSync) {
+                    await testConnection();
+                }
+
+                const deviceId = await supabaseSync.ensureDeviceUser();
+                addResult('Auth Test', 'success', `Device authenticated: ${deviceId}`);
+                log(`✅ Authentication successful: ${deviceId}`);
+
+            } catch (error) {
+                addResult('Auth Test', 'error', error.message);
+                log(`❌ Authentication failed: ${error.message}`);
+            }
+        }
+
+        async function testDatabase() {
+            log('💾 Testing database operations...');
+            
+            try {
+                if (!supabaseSync) {
+                    await testConnection();
+                }
+
+                // Test data upload
+                const testData = {
+                    transactions: [{
+                        id: 'test-' + Date.now(),
+                        type: 'expense',
+                        amount: 10.00,
+                        category: 'Test',
+                        description: 'Supabase test transaction',
+                        date: new Date().toISOString().split('T')[0]
+                    }],
+                    budgets: { 'Test': 100 },
+                    categories: { expense: ['Test'], income: [] },
+                    settings: { currency: 'USD' }
+                };
+
+                log('📤 Uploading test data...');
+                const uploadSuccess = await supabaseSync.uploadData(testData);
+                if (uploadSuccess) {
+                    addResult('Upload Test', 'success', 'Test data uploaded successfully');
+                    log('✅ Upload successful');
+                } else {
+                    throw new Error('Upload failed');
+                }
+
+                // Test data download
+                log('📥 Downloading data...');
+                const downloadedData = await supabaseSync.downloadData();
+                if (downloadedData && downloadedData.transactions) {
+                    addResult('Download Test', 'success', `Downloaded ${downloadedData.transactions.length} transactions`);
+                    log(`✅ Download successful: ${downloadedData.transactions.length} transactions`);
+                } else {
+                    throw new Error('Download failed or no data returned');
+                }
+
+            } catch (error) {
+                addResult('Database Test', 'error', error.message);
+                log(`❌ Database test failed: ${error.message}`);
+            }
+        }
+
+        async function runFullTest() {
+            log('🚀 Starting full Supabase test suite...');
+            clearResults();
+            
+            await testConnection();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testAuth();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testDatabase();
+            
+            log('🏁 Full test suite completed!');
+        }
+
+        // Auto-run basic test on load
+        window.addEventListener('load', () => {
+            log('🌟 Supabase Test Page Loaded');
+            setTimeout(testConnection, 1000);
+        });
+    </script>
+</body>
+</html>
