@@ -1,4 +1,30 @@
 // Budget App JavaScript
+console.log('Script.js is loading...');
+
+// Simple Supabase Test Function
+function testSupabaseConnection() {
+    console.log('Testing Supabase connection...');
+    
+    if (typeof window.SUPABASE_CONFIG === 'undefined') {
+        alert('❌ SUPABASE_CONFIG not found');
+        return;
+    }
+    
+    if (typeof window.SupabaseSync === 'undefined') {
+        alert('❌ SupabaseSync class not found');
+        return;
+    }
+    
+    try {
+        const sync = new window.SupabaseSync(window.SUPABASE_CONFIG);
+        alert('✅ Supabase connection test successful!');
+        console.log('Supabase test passed:', sync);
+    } catch (error) {
+        alert('❌ Supabase connection failed: ' + error.message);
+        console.error('Supabase test failed:', error);
+    }
+}
+
 class BudgetApp {
     constructor() {
         // App version for cache busting and mobile sync
@@ -10,6 +36,11 @@ class BudgetApp {
         
         // Initialize chart reference
         this.chart = null;
+        
+        // Supabase integration
+        this.supabaseSync = null;
+        this.cloudSyncEnabled = false;
+        this.lastCloudSync = null;
         
         // Initialize data and UI asynchronously to prevent blocking
         this.initializeAsync();
@@ -26,6 +57,9 @@ class BudgetApp {
         try {
             // Initialize data first
             await this.initializeDataAsync();
+            
+            // Initialize Supabase cloud sync
+            await this.initializeSupabaseSync();
             
             // Then initialize UI
             await this.initAsync();
@@ -416,6 +450,13 @@ class BudgetApp {
             // Update sync status
             if (typeof this.updateSyncStatus === 'function') {
                 this.updateSyncStatus('Data saved', 'success');
+            }
+            
+            // Trigger cloud sync if enabled (async, don't wait)
+            if (this.cloudSyncEnabled && this.supabaseSync) {
+                this.performCloudSync().catch(error => {
+                    console.error('Background cloud sync failed:', error);
+                });
             }
             
         } catch (error) {
@@ -1541,12 +1582,26 @@ class BudgetApp {
     }
 
     // Force sync - refresh all data and UI
-    forceSync() {
+    async forceSync() {
         this.updateSyncStatus('Syncing...', 'syncing');
         
         try {
-            // Reload data from storage
-            this.loadData();
+            // If cloud sync is enabled, perform cloud sync first
+            if (this.cloudSyncEnabled && this.supabaseSync) {
+                this.updateSyncStatus('Syncing with cloud...', 'syncing');
+                
+                // Download latest data from cloud
+                const cloudData = await this.supabaseSync.downloadData();
+                if (cloudData) {
+                    await this.mergeCloudData(cloudData);
+                }
+                
+                // Upload current data to cloud
+                await this.performCloudSync();
+            } else {
+                // Reload data from local storage
+                this.loadData();
+            }
             
             // Update all UI components
             this.updateDashboard();
@@ -1559,12 +1614,14 @@ class BudgetApp {
             // Check for alerts
             this.checkAlerts();
             
-            this.showAlert('Data synced successfully!', 'success');
+            const syncMessage = this.cloudSyncEnabled ? 'Data synced with cloud!' : 'Data synced locally!';
+            this.showAlert(syncMessage, 'success');
             this.updateSyncStatus('Sync completed', 'success');
             
             console.log('Force sync completed:', {
                 transactions: this.transactions.length,
                 budgets: Object.keys(this.budgets).length,
+                cloudSync: this.cloudSyncEnabled,
                 timestamp: new Date().toISOString()
             });
             
@@ -1649,12 +1706,230 @@ class BudgetApp {
             this.updateSyncStatus(`${deviceInfo} - No data`, 'ready');
         }
     }
+
+    // Initialize Supabase cloud sync
+    async initializeSupabaseSync() {
+        try {
+            console.log('Starting Supabase initialization...');
+            console.log('SupabaseSync available:', typeof window.SupabaseSync !== 'undefined');
+            console.log('SUPABASE_CONFIG available:', !!window.SUPABASE_CONFIG);
+            
+            // Check if Supabase is available and configured
+            if (typeof window.SupabaseSync !== 'undefined' && window.SUPABASE_CONFIG) {
+                console.log('Creating SupabaseSync instance...');
+                this.supabaseSync = new window.SupabaseSync(window.SUPABASE_CONFIG);
+                
+                // Initialize the client
+                console.log('Initializing Supabase client...');
+                const initialized = await this.supabaseSync.initialize();
+                
+                if (initialized) {
+                    this.cloudSyncEnabled = true;
+                    console.log('Supabase sync initialized successfully');
+                    
+                    // Set up real-time sync if enabled
+                    if (window.SUPABASE_CONFIG.enableRealTimeSync) {
+                        await this.setupRealTimeSync();
+                    }
+                    
+                    // Perform initial sync
+                    await this.performCloudSync();
+                } else {
+                    console.warn('Supabase sync initialization failed');
+                }
+            } else {
+                console.log('Supabase not configured, using local sync only');
+                console.log('Missing components:', {
+                    SupabaseSync: typeof window.SupabaseSync === 'undefined',
+                    SUPABASE_CONFIG: !window.SUPABASE_CONFIG
+                });
+            }
+        } catch (error) {
+            console.error('Error initializing Supabase sync:', error);
+            this.cloudSyncEnabled = false;
+        }
+    }
+
+    // Set up real-time sync listeners
+    async setupRealTimeSync() {
+        if (!this.supabaseSync || !this.cloudSyncEnabled) return;
+
+        try {
+            // Listen for changes from other devices
+            await this.supabaseSync.setupRealTimeSync((payload) => {
+                console.log('Real-time sync update received:', payload);
+                this.handleCloudDataUpdate(payload);
+            });
+        } catch (error) {
+            console.error('Error setting up real-time sync:', error);
+        }
+    }
+
+    // Handle incoming cloud data updates
+    async handleCloudDataUpdate(payload) {
+        try {
+            // Check if the update is from a different device
+            if (payload.device_id !== this.supabaseSync.deviceId) {
+                this.updateSyncStatus('Syncing from cloud...', 'syncing');
+                
+                // Download and merge the latest data
+                const cloudData = await this.supabaseSync.downloadData();
+                if (cloudData) {
+                    await this.mergeCloudData(cloudData);
+                    this.updateSyncStatus('Synced with cloud', 'success');
+                } else {
+                    this.updateSyncStatus('Cloud sync failed', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error handling cloud data update:', error);
+            this.updateSyncStatus('Cloud sync error', 'error');
+        }
+    }
+
+    // Perform cloud sync (upload local data)
+    async performCloudSync() {
+        if (!this.supabaseSync || !this.cloudSyncEnabled) return false;
+
+        try {
+            this.updateSyncStatus('Syncing to cloud...', 'syncing');
+            
+            // Prepare data for upload
+            const dataToSync = {
+                transactions: this.transactions || [],
+                budgets: this.budgets || [],
+                categories: this.categories || [],
+                settings: this.getAppSettings(),
+                lastModified: new Date().toISOString()
+            };
+
+            // Upload to cloud
+            const success = await this.supabaseSync.uploadData(dataToSync);
+            
+            if (success) {
+                this.lastCloudSync = new Date();
+                this.updateSyncStatus('Synced to cloud', 'success');
+                return true;
+            } else {
+                this.updateSyncStatus('Cloud sync failed', 'error');
+                return false;
+            }
+        } catch (error) {
+            console.error('Error performing cloud sync:', error);
+            this.updateSyncStatus('Cloud sync error', 'error');
+            return false;
+        }
+    }
+
+    // Download and merge cloud data
+    async mergeCloudData(cloudData) {
+        try {
+            if (!cloudData) return;
+
+            // Merge transactions
+            if (cloudData.transactions) {
+                this.transactions = this.mergeArrayData(this.transactions || [], cloudData.transactions, 'id');
+            }
+
+            // Merge budgets
+            if (cloudData.budgets) {
+                this.budgets = this.mergeArrayData(this.budgets || [], cloudData.budgets, 'category');
+            }
+
+            // Merge categories
+            if (cloudData.categories) {
+                this.categories = this.mergeArrayData(this.categories || [], cloudData.categories, 'name');
+            }
+
+            // Update settings
+            if (cloudData.settings) {
+                this.mergeSettings(cloudData.settings);
+            }
+
+            // Save merged data locally
+            this.saveData();
+            
+            // Update UI
+            this.updateUI();
+            this.updateChart();
+
+        } catch (error) {
+            console.error('Error merging cloud data:', error);
+            throw error;
+        }
+    }
+
+    // Merge array data with conflict resolution
+    mergeArrayData(localArray, cloudArray, keyField) {
+        const merged = [...localArray];
+        const localKeys = new Set(localArray.map(item => item[keyField]));
+
+        cloudArray.forEach(cloudItem => {
+            if (!localKeys.has(cloudItem[keyField])) {
+                // New item from cloud
+                merged.push(cloudItem);
+            } else {
+                // Conflict resolution: use the most recent timestamp
+                const localIndex = merged.findIndex(item => item[keyField] === cloudItem[keyField]);
+                const localItem = merged[localIndex];
+                
+                const cloudTime = new Date(cloudItem.timestamp || cloudItem.date || 0);
+                const localTime = new Date(localItem.timestamp || localItem.date || 0);
+                
+                if (cloudTime > localTime) {
+                    merged[localIndex] = cloudItem;
+                }
+            }
+        });
+
+        return merged;
+    }
+
+    // Merge settings with cloud data
+    mergeSettings(cloudSettings) {
+        // Simple merge - cloud settings take precedence for most values
+        // but preserve local device-specific settings
+        const localSettings = this.getAppSettings();
+        const mergedSettings = { ...localSettings, ...cloudSettings };
+        
+        // Preserve device-specific settings
+        mergedSettings.deviceId = localSettings.deviceId;
+        mergedSettings.lastLocalSync = localSettings.lastLocalSync;
+        
+        this.saveAppSettings(mergedSettings);
+    }
+
+    // Get current app settings
+    getAppSettings() {
+        try {
+            const settings = localStorage.getItem('budgetApp_settings');
+            return settings ? JSON.parse(settings) : {};
+        } catch (error) {
+            console.error('Error getting app settings:', error);
+            return {};
+        }
+    }
+
+    // Save app settings
+    saveAppSettings(settings) {
+        try {
+            localStorage.setItem('budgetApp_settings', JSON.stringify(settings));
+        } catch (error) {
+            console.error('Error saving app settings:', error);
+        }
+    }
 }
 
 // Initialize the app when the page loads
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new BudgetApp();
+    
+    // Add test button event listener
+    const testButton = document.getElementById('testSupabase');
+    if (testButton) {
+        testButton.addEventListener('click', testSupabaseConnection);
+    }
 });
 
 // Service Worker for offline functionality (basic implementation)
